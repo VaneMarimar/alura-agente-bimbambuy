@@ -14,7 +14,6 @@ st.write(
     "reembolsos, envíos, afiliados, garantía y métodos de pago de BimBam Buy."
 )
 
-# La API Key se configura como "Secret" en Streamlit Cloud, con el nombre APIKEY
 API_KEY = st.secrets.get("APIKEY") or os.environ.get("APIKEY")
 os.environ["GOOGLE_API_KEY"] = API_KEY or ""
 
@@ -29,7 +28,6 @@ def cargar_agente():
 
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
-    # Procesamos en lotes pequeños para no superar el límite gratuito de la API
     vectorstore = None
     tamano_lote = 15
     for i in range(0, len(chunks), tamano_lote):
@@ -48,7 +46,7 @@ def cargar_agente():
         time.sleep(2)
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
- llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0.2)
 
     return retriever, llm
 
