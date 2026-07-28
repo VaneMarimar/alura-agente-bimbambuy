@@ -5,8 +5,6 @@ from langchain_community.document_loaders import PyPDFDirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplate
 
 st.set_page_config(page_title="Alura Agente - BimBam Buy", page_icon="🤖")
 
@@ -50,28 +48,27 @@ def cargar_agente():
         time.sleep(2)
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
 
-    prompt_template = PromptTemplate(
-        template=(
-            "Eres el asistente virtual de BimBam Buy. Responde la pregunta del "
-            "usuario utilizando UNICAMENTE la informacion del siguiente contexto "
-            "extraido de los documentos oficiales de la empresa. Si la respuesta "
-            "no esta en el contexto, di claramente que no tenes esa informacion.\n\n"
-            "Contexto:\n{context}\n\nPregunta: {question}\n\nRespuesta clara y concisa:"
-        ),
-        input_variables=["context", "question"],
+    return retriever, llm
+
+
+def preguntar(pregunta, retriever, llm):
+    documentos_relevantes = retriever.invoke(pregunta)
+    contexto = "\n\n".join([doc.page_content for doc in documentos_relevantes])
+
+    prompt = (
+        "Eres el asistente virtual de BimBam Buy. Responde la pregunta del "
+        "usuario utilizando UNICAMENTE la informacion del siguiente contexto "
+        "extraido de los documentos oficiales de la empresa. Si la respuesta "
+        "no esta en el contexto, di claramente que no tenes esa informacion.\n\n"
+        f"Contexto:\n{contexto}\n\n"
+        f"Pregunta: {pregunta}\n\n"
+        "Respuesta clara y concisa:"
     )
 
-    agente = RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        chain_type_kwargs={"prompt": prompt_template},
-        return_source_documents=True,
-    )
-    return agente
+    respuesta = llm.invoke(prompt)
+    return respuesta.content, documentos_relevantes
 
 
 if not API_KEY:
@@ -81,18 +78,18 @@ if not API_KEY:
     )
     st.stop()
 
-agente = cargar_agente()
+retriever, llm = cargar_agente()
 
 pregunta = st.text_input("Escribí tu pregunta sobre BimBam Buy:")
 
 if pregunta:
     with st.spinner("Buscando la respuesta..."):
-        resultado = agente.invoke({"query": pregunta})
+        respuesta, fuentes = preguntar(pregunta, retriever, llm)
     st.markdown("### 🤖 Respuesta")
-    st.write(resultado["result"])
+    st.write(respuesta)
 
     with st.expander("📚 Ver fuentes utilizadas"):
-        for doc in resultado["source_documents"]:
+        for doc in fuentes:
             origen = doc.metadata.get("source", "desconocido")
             pagina = doc.metadata.get("page", "?")
             st.write(f"- {origen} (página {pagina})")
