@@ -48,7 +48,7 @@ def cargar_agente():
         time.sleep(2)
 
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
+  llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)
 
     return retriever, llm
 
